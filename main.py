@@ -1,52 +1,17 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import time
+from PID import PID
 
 # constants
-KP = 1.0
-KI = 0.2
-KD = 0.1
-# regulate on 0° gradient angle
-SETPOINT = 0
+KP = 0.05
+KI = 0.02
+KD = 0.01
+SETPOINT = 0  # gradient angle
+MINOUTPUT = -0.5  # more power to left wheel
+MAXOUTPUT = 0.5  # more power to right wheel
 
 
-class PID(object):
-    def __init__(self, kp, ki, kd, setpoint):
-        self.kp = kp
-        self.ki = ki
-        self.kd = kd
-        self.setpoint = setpoint
-        self.error = 0
-        self.errSum = 0
-        self.dErr = 0
-        self.lastErr = 0
-        self.sampleTime = 0.001
-        self.timeChange = 0
-        self.lastTime = 0
-        self.output = 0
-
-    def compute(self, actualValue):
-        now = round(time.time() * 1000)
-        self.timeChange = now - self.sampleTime
-
-        if self.timeChange >= self.sampleTime:
-            self.error = self.setpoint - actualValue
-            self.errSum += self.error
-            self.dErr = self.error - self.lastErr
-
-            self.output = self.kp * self.error + self.ki * self.errSum + self.kd * self.dErr
-
-            self.lastErr = self.error
-            self.lastTime = now
-
-            if self.output < -255:
-                self.output = -255
-            if self.output > 255:
-                self.output = 255
-            return int(self.output)
-
-
-pid = PID(KP, KI, KD, SETPOINT)
+pid = PID(KP, KI, KD, SETPOINT, MINOUTPUT, MAXOUTPUT)
 
 
 def dataProcessing():
@@ -63,23 +28,21 @@ def dataProcessing():
     lidarPolyGradient = np.polyder(lidarPoly)
     lidarPolyGradientAngle = float(np.arctan(lidarPolyGradient) * 180 / np.pi)
 
-    # pass the value to the motors (-255 - 255)
-    # negative integer = slow down right wheel
-    # positive integer = slow down left wheel
-    pid.compute(lidarPolyGradientAngle)
+    pidOutputValue = pid.compute(lidarPolyGradientAngle)
 
     # debug
     print(np.mean(lidarDataRawY))
     print(lidarFov)
     print(lidarPolyGradientAngle)
+    print(pidOutputValue)
 
-    fig = plt.figure(1)
+    plt.figure(1)
     plt.plot(lidarDataRawX, lidarDataRawY, 'o')
     plt.plot(lidarDataRawX, lidarPoly(lidarDataRawX))
-    plt.title("Interpolated Lidar Polynom")
+    plt.title("Interpolated Lidar Polynomial")
     plt.xlabel("Lidar FOV [mm]")
-    plt.ylabel("Abstand Wand [mm]")
-    plt.show()
+    plt.ylabel("Wall distance [mm]")
+    #plt.show()
 
 
 def main():
