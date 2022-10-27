@@ -1,7 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
+
 from PID import PID
+
 import rospy
+
 
 # constants
 KP = 0.005
@@ -18,7 +21,9 @@ pidPos = PID(KP, KI, KD, SETPOINTPOS, MINOUTPUT, MAXOUTPUT)
 pidIncl = PID(KP, KI, KD, SETPOINTINCL, MINOUTPUT, MAXOUTPUT)
 
 
-def dataProcessing():
+def dataProcessing(lidarDataRawY):
+    global pub
+
     # measurement (subscribe to sensor) / y values
     # lidarDataRawY = [995.226667, 992.910667, 994.485333, 995.016]
     # lidarDataRawYInv = [lidarDataRawY[3], lidarDataRawY[2],lidarDataRawY[1], lidarDataRawY[0]]
@@ -35,6 +40,9 @@ def dataProcessing():
 
     pidPosOutputValue = pidPos.compute(np.mean(JUMP))
     pidInclOutputValue = pidIncl.compute(lidarPolyGradientAngle)
+
+    # broadcast control value
+    pub.publisch(pidPosOutputValue)
 
     # debug
     print("pos: " + str(np.mean(JUMP)))
@@ -54,10 +62,21 @@ def dataProcessing():
     plt.pause(0.001)
 
 
-def main():
-    while 1:
-        dataProcessing()
+def listener():
+    rospy.init_node("lidarProcessing_listener_", anonymous=False)
+    rospy.Subscriber("", float, dataProcessing)
+    print("Listener started...")
+    # spin() simply keeps python from exiting until this node is stopped
+    rospy.spin()
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        pub = rospy.Publisher("lidarProcessing_talker", float, queue_size=10)
+        print("start publisher node")
+        listener()
+    except rospy.ROSInterruptException:
+        print('ROSInterruptException')
+        pass
+    finally:
+        print("close")
