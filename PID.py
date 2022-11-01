@@ -17,7 +17,7 @@ class PID:
         self.sampleTime = 0.001
         self.timeChange = 0
         self.lastTime = 0
-        self.output = 0
+        self.output = 0.0
 
     def compute(self, actualValue):
         now = round(time.time() * 1000)
